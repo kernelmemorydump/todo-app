@@ -1,14 +1,5 @@
-import uvicorn
-import mysql.connector
 from fastapi import FastAPI
 from pydantic import BaseModel
-
-db_config = {
-    "host": "localhost",
-    "user": "mysql",
-    "password": "mysql",
-    "database": "todo",
-}
 
 class Todo(BaseModel):
     id: int
@@ -16,99 +7,48 @@ class Todo(BaseModel):
     zavrseno: bool
 
 
-class CreateOrEditTodo(BaseModel):
+class EditTodo(BaseModel):
     naziv: str
     zavrseno: bool
 
 
 app = FastAPI()
 
+todos = [
+    { "id": 0, "naziv": "Oprati sudove", "zavrseno": True },
+    { "id": 1, "naziv": "Izbaciti smece", "zavrseno": False },
+    { "id": 2, "naziv": "Spremiti rucak", "zavrseno": False },
+    { "id": 3, "naziv": "Nauciti liste i dictionary-je", "zavrseno": True },
+]
+
 @app.get("/")
 async def prikazi_todos():
-    """Prikazuje sve postojece zadtke."""
-    try:
-        db_connection = mysql.connector.connect(**db_config)
-        db_cursor = db_connection.cursor()
-        db_cursor.execute("SELECT * FROM todo_tasks")
-
-        tasks = db_cursor.fetchall()
-
-        db_cursor.close()
-        db_connection.close()
-
-        return { "tasks": tasks }
-    except mysql.connector.Error as err:
-        return { "error", err }
+    return todos
 
 @app.post("/")
-async def novi_todo(todo: CreateOrEditTodo):
-    """Kreaira novi todo zadatak."""
-    naziv = todo.naziv
-    zavrseno = 1 if todo.zavrseno else 0
-
-    try:
-        db_connection = mysql.connector.connect(**db_config)
-        db_cursor = db_connection.cursor()
-
-        db_cursor.execute(f"INSERT INTO todo_tasks (id, ime, zavrseno) VALUES (0, '{naziv}', {zavrseno})")
-        db_connection.commit()
-
-        db_cursor.close()
-        db_connection.close()
-    except mysql.connector.Error as err:
-        return { "error", err }
-
-@app.put("/zavrsi")
-async def zavrsi_todo(id: int):
-    """Zavrsava postojeci zadatak."""
-    try:
-        db_connection = mysql.connector.connect(**db_config)
-        db_cursor = db_connection.cursor()
-
-        complete_query = f"UPDATE todo_tasks SET zavrseno = 1 WHERE id = {id}"
-        db_cursor.execute(complete_query)
-        db_connection.commit()
-        
-        db_cursor.close()
-        db_connection.close()
-    except mysql.connector.Error as err:
-        return { "error", err }
+async def novi_todo(todo: Todo):
+    print(todo)
+    todos.append(todo)
+    return { "message": "Novi todo je napravljen uspesno" }
 
 @app.put("/")
-async def izmeni_todo(id: int, todo: CreateOrEditTodo):
-    """Menja već postojeći todo."""
-    zavrseno = 1 if todo.zavrseno else 0
+async def izmeni_todo(id: int, todo: EditTodo):
+    for existing_todo in todos:
+        # print("Existing:", existing_todo["id"], "New:", id)
 
-    try:
-        db_connection = mysql.connector.connect(**db_config)
-        db_cursor = db_connection.cursor()
+        if existing_todo["id"] == id:
+            todo["id"] = id
+            todos.remove(existing_todo)
+            todos.append(todo)
 
-        print(todo)
-        update_query = f"UPDATE todo_tasks SET ime = '{todo.naziv}', zavrseno = {zavrseno} WHERE id = {id}"
-        db_cursor.execute(update_query)
-        db_connection.commit()
+            return { "message": f"Uspesno izmenjen todo {id}" }
         
-        db_cursor.close()
-        db_connection.close()
-    except mysql.connector.Error as err:
-        return { "error", err }
+        return { "message": f"Todo sa id-em {id} ne postoji!" }
 
 @app.delete("/")
 async def obrisi_todo(id: int):
-    """Briše već postojeći zadatak."""
-    try:
-        db_connection = mysql.connector.connect(**db_config)
-        db_cursor = db_connection.cursor()
+    for existing_todo in todos:
+        if existing_todo["id"] == id:
+            todos.remove(existing_todo)
 
-        delete_query = f"DELETE FROM todo_tasks WHERE id = {id}"
-        db_cursor.execute(delete_query)
-        db_connection.commit()
-        
-        db_cursor.close()
-        db_connection.close()
-    except mysql.connector.Error as err:
-        return { "error", err }
-    
-
-if __name__ == "__main__":
-    uvicorn.run(app, port=8000, host="127.0.0.1")
+            return { "message": f"Todo {id} je uspesno obrisan" }
