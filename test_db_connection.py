@@ -1,7 +1,7 @@
 import mysql.connector
 
 db_config = {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "user": "mysql",
     "password": "mysql"
 }
